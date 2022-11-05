@@ -3,6 +3,8 @@ import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.*;
+import org.apache.hadoop.hbase.filter.CompareFilter;
+import org.apache.hadoop.hbase.filter.SingleColumnValueFilter;
 import org.apache.hadoop.hbase.util.Bytes;
 
 import java.io.IOException;
@@ -14,6 +16,7 @@ public class demo {
         insertOne();
         get();
         scan();
+        scanFilter();
         drop();
     }
 
@@ -42,7 +45,8 @@ public class demo {
         List<Put> puts = new ArrayList<Put>();
         for (int i = 0; i < 10; ++i) {
             Put put = new Put(Bytes.toBytes("s100"+i));
-            put.addColumn(Bytes.toBytes("info"), Bytes.toBytes("age"), Bytes.toBytes("20"));
+            int age = new Random().nextInt(100);
+            put.addColumn(Bytes.toBytes("info"), Bytes.toBytes("age"), Bytes.toBytes(""+age));
             puts.add(put);
         }
         student.put(puts);
@@ -56,7 +60,7 @@ public class demo {
 
         HTable student = new HTable(conf, "student");
 
-        Get get = new Get(Bytes.toBytes("s0001"));
+        Get get = new Get(Bytes.toBytes("s1001"));
         Result result = student.get(get);
 
         String age = Bytes.toString(result.getValue(Bytes.toBytes("info"), Bytes.toBytes("age")));
@@ -72,6 +76,28 @@ public class demo {
         HTable student = new HTable(conf, "student");
 
         Scan scan = new Scan();
+        ResultScanner scanner = student.getScanner(scan);
+        for (Result r : scanner) {
+            String age = Bytes.toString(r.getValue(Bytes.toBytes("info"), Bytes.toBytes("age")));
+            System.out.println("age: " + age);
+        }
+
+        student.close();
+    }
+
+    private static void scanFilter() throws IOException {
+        Configuration conf = new Configuration();
+        conf.set("hbase.zookeeper.quorum", "bigdata01");
+
+        HTable student = new HTable(conf, "student");
+
+        SingleColumnValueFilter singleColumnValueFilter = new SingleColumnValueFilter(Bytes.toBytes("info"),
+                Bytes.toBytes("age"),
+                CompareFilter.CompareOp.GREATER_OR_EQUAL,
+                Bytes.toBytes("90"));
+
+        Scan scan = new Scan();
+        scan.setFilter(singleColumnValueFilter);
         ResultScanner scanner = student.getScanner(scan);
         for (Result r : scanner) {
             String age = Bytes.toString(r.getValue(Bytes.toBytes("info"), Bytes.toBytes("age")));
